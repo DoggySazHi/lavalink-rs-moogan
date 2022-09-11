@@ -221,7 +221,7 @@ impl PlayParameters {
         if !client_lock.loops.contains(&self.guild_id) {
             let guild_id = self.guild_id;
 
-            if let Some(ref mut node) = client_lock.nodes.get_mut(&guild_id) {
+            if let TryResult::Present(ref mut node) =  client_lock.nodes.try_get_mut(&guild_id) {
                 if node.is_on_loops {
                     node.queue.push(track);
 

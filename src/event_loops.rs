@@ -23,6 +23,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use async_tungstenite::tungstenite::Message as TungsteniteMessage;
+use dashmap::try_result::TryResult;
 
 #[cfg(feature = "discord-gateway")]
 #[derive(Deserialize)]
@@ -335,8 +336,8 @@ pub async fn lavalink_event_loop(
                                     let client_clone = client.clone();
                                     let client_lock = client_clone.inner.lock();
 
-                                    if let Some(mut node) =
-                                        client_lock.nodes.get_mut(&player_update.guild_id.0)
+                                    if let TryResult::Present(mut node) =
+                                        client_lock.nodes.try_get_mut(&player_update.guild_id.0)
                                     {
                                         if let Some(mut current_track) = node.now_playing.as_mut() {
                                             let mut info =
@@ -384,8 +385,8 @@ pub async fn lavalink_event_loop(
                                     if track_finish.reason == "FINISHED" {
                                         let client_lock = client.inner.lock();
 
-                                        if let Some(mut node) =
-                                            client_lock.nodes.get_mut(&track_finish.guild_id.0)
+                                        if let TryResult::Present(mut node) =
+                                            client_lock.nodes.try_get_mut(&track_finish.guild_id.0)
                                         {
                                             if !node.queue.is_empty() {
                                                 node.queue.remove(0);

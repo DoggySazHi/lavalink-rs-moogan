@@ -74,6 +74,7 @@ use async_tungstenite::{
 use tokio::sync::mpsc;
 
 use dashmap::{DashMap, DashSet};
+use dashmap::try_result::TryResult;
 
 /// All 0's equalizer preset. Default.
 pub const EQ_BASE: [f64; 15] = [
@@ -583,15 +584,17 @@ impl LavalinkClient {
     pub async fn skip(&self, guild_id: impl Into<GuildId>) -> Option<TrackQueue> {
         let client = self.inner.lock();
 
-        let mut node = client.nodes.get_mut(&guild_id.into().0)?;
+        if let TryResult::Present(mut node) = client.nodes.try_get_mut(&guild_id.into().0) {
+            node.now_playing = None;
 
-        node.now_playing = None;
-
-        if node.queue.is_empty() {
-            None
-        } else {
-            Some(node.queue.remove(0))
+            return if node.queue.is_empty() {
+                None
+            } else {
+                Some(node.queue.remove(0))
+            }
         }
+
+        None
     }
 
     /// Sets the pause status.
@@ -601,9 +604,11 @@ impl LavalinkClient {
 
         {
             let nodes = self.nodes().await;
-            let node = nodes.get_mut(&guild_id);
-            if let Some(mut n) = node {
+            let node = nodes.try_get_mut(&guild_id);
+            if let TryResult::Present(mut n) = node {
                 n.is_paused = pause;
+            } else {
+                return Err(LavalinkError::ChannelSendError)
             }
         }
 
