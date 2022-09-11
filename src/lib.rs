@@ -382,24 +382,31 @@ impl LavalinkClient {
             event,
         };
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+        let nodes: Arc<DashMap<u64, Node>>;
+
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+
+            nodes = client.nodes.clone();
+        }
 
         crate::model::SendOpcode::VoiceUpdate(payload)
             .send(
                 connection_info.guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
-        if !client.nodes.contains_key(&connection_info.guild_id.0) {
-            client
-                .nodes
-                .insert(connection_info.guild_id.0, Node::default());
+        if !nodes.contains_key(&connection_info.guild_id.0) {
+            nodes.insert(connection_info.guild_id.0, Node::default());
         }
 
         Ok(())
@@ -441,27 +448,32 @@ impl LavalinkClient {
 
         let payload = crate::model::VoiceUpdate { session_id, event };
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+        let nodes: Arc<DashMap<u64, Node>>;
+
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+
+            nodes = client.nodes.clone();
+        }
 
         crate::model::SendOpcode::VoiceUpdate(payload)
             .send(
                 connection_info.guild_id.unwrap(),
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
-        if !client
-            .nodes
-            .contains_key(&connection_info.guild_id.unwrap().0)
+        if nodes.contains_key(&connection_info.guild_id.unwrap().0)
         {
-            client
-                .nodes
-                .insert(connection_info.guild_id.unwrap().0, Node::default());
+            nodes.insert(connection_info.guild_id.unwrap().0, Node::default());
         }
 
         Ok(())
@@ -505,9 +517,23 @@ impl LavalinkClient {
     pub async fn destroy(&self, guild_id: impl Into<GuildId>) -> LavalinkResult<()> {
         let guild_id = guild_id.into();
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+        let nodes: Arc<DashMap<u64, Node>>;
 
-        if let Some(mut node) = client.nodes.get_mut(&guild_id.0) {
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+
+            nodes = client.nodes.clone();
+        }
+
+        if let Some(mut node) = nodes.get_mut(&guild_id.0) {
             node.now_playing = None;
 
             if !node.queue.is_empty() {
@@ -518,12 +544,7 @@ impl LavalinkClient {
         crate::model::SendOpcode::Destroy
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
@@ -532,17 +553,23 @@ impl LavalinkClient {
 
     /// Stops the current player.
     pub async fn stop(&self, guild_id: impl Into<GuildId>) -> LavalinkResult<()> {
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+        }
 
         crate::model::SendOpcode::Stop
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
@@ -580,17 +607,23 @@ impl LavalinkClient {
             }
         }
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+        }
 
         crate::model::SendOpcode::Pause(payload)
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
@@ -613,17 +646,23 @@ impl LavalinkClient {
             position: time.as_millis() as u64,
         };
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+        }
 
         crate::model::SendOpcode::Seek(payload)
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
@@ -652,17 +691,23 @@ impl LavalinkClient {
             volume: good_volume,
         };
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+        }
 
         crate::model::SendOpcode::Volume(payload)
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
@@ -692,17 +737,22 @@ impl LavalinkClient {
 
         let payload = crate::model::Equalizer { bands };
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
 
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+        }
         crate::model::SendOpcode::Equalizer(payload)
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
@@ -719,17 +769,22 @@ impl LavalinkClient {
     ) -> LavalinkResult<()> {
         let payload = crate::model::Equalizer { bands };
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
 
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+        }
         crate::model::SendOpcode::Equalizer(payload)
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
@@ -744,17 +799,23 @@ impl LavalinkClient {
     ) -> LavalinkResult<()> {
         let payload = crate::model::Equalizer { bands: vec![band] };
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+        }
 
         crate::model::SendOpcode::Equalizer(payload)
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket
             )
             .await?;
 
@@ -772,17 +833,23 @@ impl LavalinkClient {
 
         let payload = crate::model::Equalizer { bands };
 
-        let client = self.inner.lock();
+        let socket: tokio::sync::mpsc::UnboundedSender<(TungsteniteMessage, mpsc::UnboundedSender<()>)>;
+
+        {
+            let client = self.inner.lock();
+
+            socket = client
+                .socket_sender
+                .read()
+                .as_ref()
+                .ok_or(LavalinkError::MissingLavalinkSocket)?
+                .clone();
+        }
 
         crate::model::SendOpcode::Equalizer(payload)
             .send(
                 guild_id,
-                client
-                    .socket_sender
-                    .read()
-                    .as_ref()
-                    .ok_or(LavalinkError::MissingLavalinkSocket)?
-                    .clone(),
+                socket,
             )
             .await?;
 
